@@ -1,10 +1,10 @@
-import { webcrypto } from 'one-webcrypto'
 import * as uint8arrays from 'uint8arrays'
 import { SupportedEncodings } from 'uint8arrays/util/bases'
 import * as did from '../did'
 import * as operations from './operations'
 import { P256_JWT_ALG } from '../const'
 import { Keypair } from '../types'
+const webcrypto = crypto
 
 export type EcdsaKeypairOptions = {
   exportable: boolean

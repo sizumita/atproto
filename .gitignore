@@ -15,3 +15,6 @@ tsconfig.build.tsbuildinfo
 \#*\#
 *~
 *.swp
+
+.yarn/
+

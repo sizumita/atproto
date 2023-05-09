@@ -28,7 +28,8 @@ import {
   DefTreeNode,
   toCamelCase,
   toTitleCase,
-  toScreamingSnakeCase, schemasToNsidTokens, lexiconsToDefTree,
+  schemasToNsidTokens,
+  lexiconsToDefTree,
 } from './util'
 
 export async function genServerApi(
@@ -67,9 +68,21 @@ const indexTs = (
       ) {
         continue
       }
-      file.addExportDeclaration({
-        moduleSpecifier: `./types/${lexiconDoc.id.split('.').join('/')}`,
-        namespaceExport: toTitleCase(lexiconDoc.id),
+      file
+        .addImportDeclaration({
+          moduleSpecifier: `./types/${lexiconDoc.id.split('.').join('/')}`,
+        })
+        .setNamespaceImport(`${toTitleCase(lexiconDoc.id)}_Type`)
+      file.addTypeAlias({
+        name: toTitleCase(lexiconDoc.id),
+        type: [
+          `{I: ${toTitleCase(lexiconDoc.id)}_Type.InputSchema, O: ${toTitleCase(
+            lexiconDoc.id,
+          )}_Type.OutputSchema, I: ${toTitleCase(
+            lexiconDoc.id,
+          )}_Type.QueryParams}`,
+        ].join('|'),
+        isExported: true,
       })
     }
   })

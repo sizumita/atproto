@@ -22,7 +22,8 @@ import {
   genXrpcParams,
   genXrpcInput,
   genXrpcOutput,
-  genObjHelpers, genXrpcInputUndefined,
+  genObjHelpers,
+  genXrpcInputUndefined,
 } from './lex-gen'
 import {
   DefTreeNode,
@@ -59,6 +60,19 @@ const indexTs = (
   nsidTokens: Record<string, string[]>,
 ) =>
   gen(project, '/index.ts', async (file) => {
+    file
+      .addImportDeclaration({
+        moduleSpecifier: '@worker-atproto/service-types',
+      })
+      .addNamedImports([
+        { name: 'ErrorResponse' },
+        { name: 'LexiconServiceHandler' },
+      ])
+    file
+      .addImportDeclaration({
+        moduleSpecifier: '../index',
+      })
+      .addNamedImports([{ name: 'Environment' }])
     // generate type imports
     for (const lexiconDoc of lexiconDocs) {
       if (
@@ -72,16 +86,14 @@ const indexTs = (
         .addImportDeclaration({
           moduleSpecifier: `./types/${lexiconDoc.id.split('.').join('/')}`,
         })
-        .setNamespaceImport(`${toTitleCase(lexiconDoc.id)}_Type`)
+        .setNamespaceImport(`${toTitleCase(lexiconDoc.id)}Types`)
       file.addTypeAlias({
-        name: toTitleCase(lexiconDoc.id),
-        type: [
-          `{I: ${toTitleCase(lexiconDoc.id)}_Type.InputSchema, O: ${toTitleCase(
-            lexiconDoc.id,
-          )}_Type.OutputSchema, P: ${toTitleCase(
-            lexiconDoc.id,
-          )}_Type.QueryParams}`,
-        ].join('|'),
+        name: `${toTitleCase(lexiconDoc.id)}Handler`,
+        type: `LexiconServiceHandler<Environment, "${
+          lexiconDoc.id
+        }", ${toTitleCase(lexiconDoc.id)}Types.InputSchema, ${toTitleCase(
+          lexiconDoc.id,
+        )}Types.OutputSchema, ErrorResponse>`,
         isExported: true,
       })
     }

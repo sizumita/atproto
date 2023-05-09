@@ -298,6 +298,14 @@ export function genXrpcParams(
   }
 }
 
+export function genXrpcInputUndefined(file: SourceFile) {
+  file.addTypeAlias({
+    isExported: true,
+    name: 'InputSchema',
+    type: 'undefined',
+  })
+}
+
 export function genXrpcInput(
   file: SourceFile,
   imports: Set<string>,
@@ -397,6 +405,12 @@ export function genXrpcOutput(
         defaultsArePresent,
       )
     }
+  } else {
+    file.addTypeAlias({
+      name: 'OutputSchema',
+      type: 'void',
+      isExported: true,
+    })
   }
 }
 

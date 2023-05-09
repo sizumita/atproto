@@ -22,7 +22,7 @@ import {
   genXrpcParams,
   genXrpcInput,
   genXrpcOutput,
-  genObjHelpers,
+  genObjHelpers, genXrpcInputUndefined,
 } from './lex-gen'
 import {
   DefTreeNode,
@@ -78,7 +78,7 @@ const indexTs = (
         type: [
           `{I: ${toTitleCase(lexiconDoc.id)}_Type.InputSchema, O: ${toTitleCase(
             lexiconDoc.id,
-          )}_Type.OutputSchema, I: ${toTitleCase(
+          )}_Type.OutputSchema, P: ${toTitleCase(
             lexiconDoc.id,
           )}_Type.QueryParams}`,
         ].join('|'),
@@ -172,6 +172,12 @@ const lexiconTs = (project, lexicons: Lexicons, lexiconDoc: LexiconDoc) =>
     async (file) => {
       const imports: Set<string> = new Set()
 
+      file
+        .addImportDeclaration({
+          moduleSpecifier: 'multiformats/cid',
+        })
+        .addNamedImports([{ name: 'CID' }])
+
       for (const defId in lexiconDoc.defs) {
         const def = lexiconDoc.defs[defId]
         const lexUri = `${lexiconDoc.id}#${defId}`
@@ -182,6 +188,7 @@ const lexiconTs = (project, lexicons: Lexicons, lexiconDoc: LexiconDoc) =>
             genXrpcOutput(file, imports, lexicons, lexUri, false)
           } else if (def.type === 'subscription') {
             genXrpcParams(file, lexicons, lexUri)
+            genXrpcInputUndefined(file)
             genXrpcOutput(file, imports, lexicons, lexUri, false)
           } else if (def.type === 'record') {
             genServerRecord(file, imports, lexicons, lexUri)

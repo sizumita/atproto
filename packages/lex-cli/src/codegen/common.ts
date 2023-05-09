@@ -36,74 +36,47 @@ export const lexiconsTs = (project, lexicons: LexiconDoc[]) =>
         .join('')
     }
 
-    //= import {LexiconDoc} from '@atproto/lexicon'
-    file
-      .addImportDeclaration({
-        moduleSpecifier: '@atproto/lexicon',
-      })
-      .addNamedImports([{ name: 'LexiconDoc' }, { name: 'Lexicons' }])
-
-    //= export const schemaDict: Record<string, LexiconDoc> = {...}
-    file.addVariableStatement({
-      isExported: true,
-      declarationKind: VariableDeclarationKind.Const,
-      declarations: [
-        {
-          name: 'schemaDict',
-          initializer: JSON.stringify(
-            lexicons.reduce(
-              (acc, cur) => ({
-                ...acc,
-                [nsidToEnum(cur.id)]: cur,
-              }),
-              {},
-            ),
-            null,
-            2,
-          ),
-        },
-      ],
-    })
-
-    //= export const schemas: LexiconDoc[] = Object.values(schemaDict) as LexiconDoc[]
-    file.addVariableStatement({
-      isExported: true,
-      declarationKind: VariableDeclarationKind.Const,
-      declarations: [
-        {
-          name: 'schemas',
-          type: 'LexiconDoc[]',
-          initializer: 'Object.values(schemaDict) as LexiconDoc[]',
-        },
-      ],
-    })
-
-    //= export const lexicons: Lexicons = new Lexicons(schemas)
-    file.addVariableStatement({
-      isExported: true,
-      declarationKind: VariableDeclarationKind.Const,
-      declarations: [
-        {
-          name: 'lexicons',
-          type: 'Lexicons',
-          initializer: 'new Lexicons(schemas)',
-        },
-      ],
-    })
-
     //= export const ids = {...}
     file.addVariableStatement({
       isExported: true,
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
         {
-          name: 'ids',
+          name: 'lexiconIds',
           initializer: JSON.stringify(
             lexicons.reduce((acc, cur) => {
               return {
                 ...acc,
                 [nsidToEnum(cur.id)]: cur.id,
               }
+            }, {}),
+          ),
+        },
+      ],
+    })
+    //= export const methods = {...}
+    file.addVariableStatement({
+      isExported: true,
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [
+        {
+          name: 'lexiconMethods',
+          initializer: JSON.stringify(
+            lexicons.reduce((acc, cur) => {
+              if (cur.defs.main?.type === 'procedure') {
+                return {
+                  ...acc,
+                  [nsidToEnum(cur.id)]: 'POST',
+                }
+              } else if (cur.defs.main?.type === 'query') {
+                return {
+                  ...acc,
+                  [nsidToEnum(cur.id)]: 'GET',
+                }
+              } else if (cur.defs.main?.type === 'subscription') {
+                // TODO
+              }
+              return acc
             }, {}),
           ),
         },

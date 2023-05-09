@@ -28,7 +28,7 @@ import {
   DefTreeNode,
   toCamelCase,
   toTitleCase,
-  toScreamingSnakeCase,
+  toScreamingSnakeCase, schemasToNsidTokens, lexiconsToDefTree,
 } from './util'
 
 export async function genServerApi(
@@ -40,11 +40,14 @@ export async function genServerApi(
   })
   const api: GeneratedAPI = { files: [] }
   const lexicons = new Lexicons(lexiconDocs)
+  const nsidTree = lexiconsToDefTree(lexiconDocs)
+  const nsidTokens = schemasToNsidTokens(lexiconDocs)
   for (const lexiconDoc of lexiconDocs) {
     api.files.push(await lexiconTs(project, lexicons, lexiconDoc))
   }
   api.files.push(await utilTs(project))
   api.files.push(await lexiconsTs(project, lexiconDocs))
+  api.files.push(await indexTs(project, lexiconDocs, nsidTree, nsidTokens))
   return api
 }
 
@@ -55,35 +58,6 @@ const indexTs = (
   nsidTokens: Record<string, string[]>,
 ) =>
   gen(project, '/index.ts', async (file) => {
-    //= import {createServer as createXrpcServer, Server as XrpcServer} from '@atproto/xrpc-server'
-    file.addImportDeclaration({
-      moduleSpecifier: '@atproto/xrpc-server',
-      namedImports: [
-        {
-          name: 'createServer',
-          alias: 'createXrpcServer',
-        },
-        {
-          name: 'Server',
-          alias: 'XrpcServer',
-        },
-        {
-          name: 'Options',
-          alias: 'XrpcOptions',
-        },
-        { name: 'AuthVerifier' },
-        { name: 'StreamAuthVerifier' },
-      ],
-    })
-    //= import {schemas} from './lexicons'
-    file
-      .addImportDeclaration({
-        moduleSpecifier: './lexicons',
-      })
-      .addNamedImport({
-        name: 'schemas',
-      })
-
     // generate type imports
     for (const lexiconDoc of lexiconDocs) {
       if (
@@ -93,111 +67,11 @@ const indexTs = (
       ) {
         continue
       }
-      file
-        .addImportDeclaration({
-          moduleSpecifier: `./types/${lexiconDoc.id.split('.').join('/')}`,
-        })
-        .setNamespaceImport(toTitleCase(lexiconDoc.id))
-    }
-
-    // generate token enums
-    for (const nsidAuthority in nsidTokens) {
-      // export const {THE_AUTHORITY} = {
-      //  {Name}: "{authority.the.name}"
-      // }
-      file.addVariableStatement({
-        isExported: true,
-        declarationKind: VariableDeclarationKind.Const,
-        declarations: [
-          {
-            name: toScreamingSnakeCase(nsidAuthority),
-            initializer: [
-              '{',
-              ...nsidTokens[nsidAuthority].map(
-                (nsidName) =>
-                  `${toTitleCase(nsidName)}: "${nsidAuthority}.${nsidName}",`,
-              ),
-              '}',
-            ].join('\n'),
-          },
-        ],
+      file.addExportDeclaration({
+        moduleSpecifier: `./types/${lexiconDoc.id.split('.').join('/')}`,
+        namespaceExport: toTitleCase(lexiconDoc.id),
       })
     }
-
-    //= export function createServer(options?: XrpcOptions) { ... }
-    const createServerFn = file.addFunction({
-      name: 'createServer',
-      returnType: 'Server',
-      parameters: [
-        { name: 'options', type: 'XrpcOptions', hasQuestionToken: true },
-      ],
-      isExported: true,
-    })
-    createServerFn.setBodyText(`return new Server(options)`)
-
-    //= export class Server {...}
-    const serverCls = file.addClass({
-      name: 'Server',
-      isExported: true,
-    })
-    //= xrpc: XrpcServer = createXrpcServer(methodSchemas)
-    serverCls.addProperty({
-      name: 'xrpc',
-      type: 'XrpcServer',
-    })
-
-    // generate classes for the schemas
-    for (const ns of nsidTree) {
-      //= ns: NS
-      serverCls.addProperty({
-        name: ns.propName,
-        type: ns.className,
-      })
-
-      // class...
-      genNamespaceCls(file, ns)
-    }
-
-    //= constructor (options?: XrpcOptions) {
-    //=  this.xrpc = createXrpcServer(schemas, options)
-    //=  {namespace declarations}
-    //= }
-    serverCls
-      .addConstructor({
-        parameters: [
-          { name: 'options', type: 'XrpcOptions', hasQuestionToken: true },
-        ],
-      })
-      .setBodyText(
-        [
-          'this.xrpc = createXrpcServer(schemas, options)',
-          ...nsidTree.map(
-            (ns) => `this.${ns.propName} = new ${ns.className}(this)`,
-          ),
-        ].join('\n'),
-      )
-
-    file.addTypeAlias({
-      name: 'ConfigOf',
-      typeParameters: [{ name: 'Auth' }, { name: 'Handler' }],
-      type: `
-        | Handler
-        | {
-          auth?: Auth
-          handler: Handler
-        }`,
-    })
-
-    file.addTypeAlias({
-      name: 'ExtractAuth',
-      typeParameters: [
-        { name: 'AV', constraint: 'AuthVerifier | StreamAuthVerifier' },
-      ],
-      type: `Extract<
-        Awaited<ReturnType<AV>>,
-        { credentials: unknown }
-      >`,
-    })
   })
 
 function genNamespaceCls(file: SourceFile, ns: DefTreeNode) {

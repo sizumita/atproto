@@ -25,9 +25,7 @@ import {
   genObjHelpers,
 } from './lex-gen'
 import {
-  lexiconsToDefTree,
   DefTreeNode,
-  schemasToNsidTokens,
   toCamelCase,
   toTitleCase,
   toScreamingSnakeCase,
@@ -42,14 +40,11 @@ export async function genServerApi(
   })
   const api: GeneratedAPI = { files: [] }
   const lexicons = new Lexicons(lexiconDocs)
-  const nsidTree = lexiconsToDefTree(lexiconDocs)
-  const nsidTokens = schemasToNsidTokens(lexiconDocs)
   for (const lexiconDoc of lexiconDocs) {
     api.files.push(await lexiconTs(project, lexicons, lexiconDoc))
   }
   api.files.push(await utilTs(project))
   api.files.push(await lexiconsTs(project, lexiconDocs))
-  api.files.push(await indexTs(project, lexiconDocs, nsidTree, nsidTokens))
   return api
 }
 
@@ -290,58 +285,6 @@ const lexiconTs = (project, lexicons: Lexicons, lexiconDoc: LexiconDoc) =>
     async (file) => {
       const imports: Set<string> = new Set()
 
-      const main = lexiconDoc.defs.main
-      if (main?.type === 'query' || main?.type === 'procedure') {
-        //= import express from 'express'
-        file.addImportDeclaration({
-          moduleSpecifier: 'express',
-          defaultImport: 'express',
-        })
-
-        const streamingInput =
-          main?.type === 'procedure' &&
-          main.input?.encoding &&
-          !main.input.schema
-        const streamingOutput = main.output?.encoding && !main.output.schema
-        if (streamingInput || streamingOutput) {
-          //= import stream from 'stream'
-          file.addImportDeclaration({
-            moduleSpecifier: 'stream',
-            defaultImport: 'stream',
-          })
-        }
-      }
-      //= import {ValidationResult, BlobRef} from '@atproto/lexicon'
-      file
-        .addImportDeclaration({
-          moduleSpecifier: '@atproto/lexicon',
-        })
-        .addNamedImports([{ name: 'ValidationResult' }, { name: 'BlobRef' }])
-      //= import {lexicons} from '../../lexicons.ts'
-      file
-        .addImportDeclaration({
-          moduleSpecifier: `${lexiconDoc.id
-            .split('.')
-            .map((_str) => '..')
-            .join('/')}/lexicons`,
-        })
-        .addNamedImports([{ name: 'lexicons' }])
-      //= import {isObj, hasProp} from '../../util.ts'
-      file
-        .addImportDeclaration({
-          moduleSpecifier: `${lexiconDoc.id
-            .split('.')
-            .map((_str) => '..')
-            .join('/')}/util`,
-        })
-        .addNamedImports([{ name: 'isObj' }, { name: 'hasProp' }])
-      //= import {CID} from 'multiformats/cid'
-      file
-        .addImportDeclaration({
-          moduleSpecifier: 'multiformats/cid',
-        })
-        .addNamedImports([{ name: 'CID' }])
-
       for (const defId in lexiconDoc.defs) {
         const def = lexiconDoc.defs[defId]
         const lexUri = `${lexiconDoc.id}#${defId}`
@@ -350,11 +293,9 @@ const lexiconTs = (project, lexicons: Lexicons, lexiconDoc: LexiconDoc) =>
             genXrpcParams(file, lexicons, lexUri)
             genXrpcInput(file, imports, lexicons, lexUri)
             genXrpcOutput(file, imports, lexicons, lexUri, false)
-            genServerXrpcMethod(file, lexicons, lexUri)
           } else if (def.type === 'subscription') {
             genXrpcParams(file, lexicons, lexUri)
             genXrpcOutput(file, imports, lexicons, lexUri, false)
-            genServerXrpcStreaming(file, lexicons, lexUri)
           } else if (def.type === 'record') {
             genServerRecord(file, imports, lexicons, lexUri)
           } else {

@@ -66,7 +66,6 @@ export function genUserType(
       break
     case 'object':
       genObject(file, imports, lexUri, def)
-      genObjHelpers(file, lexUri)
       break
 
     case 'blob':

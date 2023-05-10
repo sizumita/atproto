@@ -113,7 +113,7 @@ const serverTs = (
       .map((doc) => {
         const method = doc.defs.main?.type === 'query' ? 'get' : 'post'
         return [
-          `const ${toTitleCase(doc.id)}Service = service.${method}("/${
+          `const ${toTitleCase(doc.id)}Service = service.${method}("/xrpc/${
             doc.id
           }", ...${toTitleCase(doc.id)}Handlers)`,
           `Service<typeof ${toTitleCase(doc.id)}Service, ${toTitleCase(
@@ -174,7 +174,7 @@ const indexTs = (
         .setNamespaceImport(`${toTitleCase(lexiconDoc.id)}Types`)
       file.addTypeAlias({
         name: `${toTitleCase(lexiconDoc.id)}Handler`,
-        type: `LexiconServiceHandler<Environment, "${
+        type: `LexiconServiceHandler<Environment, "/xrpc/${
           lexiconDoc.id
         }", ${toTitleCase(lexiconDoc.id)}Types.InputSchema, ${toTitleCase(
           lexiconDoc.id,

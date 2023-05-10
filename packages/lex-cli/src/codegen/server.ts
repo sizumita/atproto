@@ -50,8 +50,72 @@ export async function genServerApi(
   api.files.push(await utilTs(project))
   api.files.push(await lexiconsTs(project, lexiconDocs))
   api.files.push(await indexTs(project, lexiconDocs, nsidTree, nsidTokens))
+  api.files.push(await serverTs(project, lexiconDocs, nsidTree, nsidTokens))
   return api
 }
+
+const serverTs = (
+  project: Project,
+  lexiconDocs: LexiconDoc[],
+  nsidTree: DefTreeNode[],
+  nsidTokens: Record<string, string[]>,
+) =>
+  gen(project, '/server.ts', async (file) => {
+    file
+      .addImportDeclaration({
+        moduleSpecifier: '../index',
+      })
+      .addNamedImports([{ name: 'Environment' }])
+    file
+      .addImportDeclaration({
+        moduleSpecifier: 'hono',
+      })
+      .addNamedImports([{ name: 'Hono' }])
+    for (const lexiconDoc of lexiconDocs) {
+      if (
+        lexiconDoc.defs.main?.type !== 'query' &&
+        // lexiconDoc.defs.main?.type !== 'subscription' &&
+        lexiconDoc.defs.main?.type !== 'procedure'
+      ) {
+        continue
+      }
+      file
+        .addImportDeclaration({
+          moduleSpecifier: `../api/${lexiconDoc.id.split('.').join('/')}`,
+        })
+        .setNamespaceImport(`${toTitleCase(lexiconDoc.id)}Handlers`)
+    }
+    const statements: [string, string][] = lexiconDocs
+      .filter((doc) => {
+        return (
+          doc.defs.main?.type === 'query' || doc.defs.main?.type === 'procedure'
+        )
+      })
+      .map((doc) => {
+        const method = doc.defs.main?.type !== 'query' ? 'get' : 'post'
+        return [
+          `const ${toTitleCase(
+            doc.id,
+          )}Service = service.${method}(...${toTitleCase(doc.id)}Handlers)`,
+          `${toTitleCase(doc.id)}Service`,
+        ]
+      })
+    const [consts, types] = statements.reduce(
+      (cs, ts) => {
+        return [
+          [...cs[0], ts[0]],
+          [...cs[1], ts[1]],
+        ]
+      },
+      [[], []] as [string[], string[]],
+    )
+    file.addStatements([
+      'const service = new Hono<Environment>',
+      ...consts,
+      `export type XrpcService = ${types.join('|')}`,
+      'export default service',
+    ])
+  })
 
 const indexTs = (
   project: Project,
@@ -77,7 +141,7 @@ const indexTs = (
     for (const lexiconDoc of lexiconDocs) {
       if (
         lexiconDoc.defs.main?.type !== 'query' &&
-        lexiconDoc.defs.main?.type !== 'subscription' &&
+        // lexiconDoc.defs.main?.type !== 'subscription' &&
         lexiconDoc.defs.main?.type !== 'procedure'
       ) {
         continue

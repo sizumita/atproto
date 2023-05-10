@@ -71,6 +71,25 @@ const serverTs = (
         moduleSpecifier: 'hono',
       })
       .addNamedImports([{ name: 'Hono' }])
+    file
+      .addImportDeclaration({
+        moduleSpecifier: '@worker-atproto/service-types',
+      })
+      .addNamedImports([{ name: 'Service' }])
+    file
+      .addImportDeclaration({
+        moduleSpecifier: './index',
+      })
+      .addNamedImports(
+        lexiconDocs
+          .filter((doc) => {
+            return (
+              doc.defs.main?.type === 'query' ||
+              doc.defs.main?.type === 'procedure'
+            )
+          })
+          .map((doc) => ({ name: `${toTitleCase(doc.id)}Handler` })),
+      )
     for (const lexiconDoc of lexiconDocs) {
       if (
         lexiconDoc.defs.main?.type !== 'query' &&
@@ -83,7 +102,7 @@ const serverTs = (
         .addImportDeclaration({
           moduleSpecifier: `../api/${lexiconDoc.id.split('.').join('/')}`,
         })
-        .setNamespaceImport(`${toTitleCase(lexiconDoc.id)}Handlers`)
+        .setDefaultImport(`${toTitleCase(lexiconDoc.id)}Handlers`)
     }
     const statements: [string, string][] = lexiconDocs
       .filter((doc) => {
@@ -94,10 +113,12 @@ const serverTs = (
       .map((doc) => {
         const method = doc.defs.main?.type !== 'query' ? 'get' : 'post'
         return [
-          `const ${toTitleCase(
+          `const ${toTitleCase(doc.id)}Service = service.${method}("/${
+            doc.id
+          }", ...${toTitleCase(doc.id)}Handlers)`,
+          `Service<typeof ${toTitleCase(doc.id)}Service, ${toTitleCase(
             doc.id,
-          )}Service = service.${method}(...${toTitleCase(doc.id)}Handlers)`,
-          `${toTitleCase(doc.id)}Service`,
+          )}Handler>`,
         ]
       })
     const [consts, types] = statements.reduce(

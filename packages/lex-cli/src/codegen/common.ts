@@ -54,34 +54,6 @@ export const lexiconsTs = (project, lexicons: LexiconDoc[]) =>
         },
       ],
     })
-    //= export const methods = {...}
-    file.addVariableStatement({
-      isExported: true,
-      declarationKind: VariableDeclarationKind.Const,
-      declarations: [
-        {
-          name: 'lexiconMethods',
-          initializer: JSON.stringify(
-            lexicons.reduce((acc, cur) => {
-              if (cur.defs.main?.type === 'procedure') {
-                return {
-                  ...acc,
-                  [nsidToEnum(cur.id)]: 'POST',
-                }
-              } else if (cur.defs.main?.type === 'query') {
-                return {
-                  ...acc,
-                  [nsidToEnum(cur.id)]: 'GET',
-                }
-              } else if (cur.defs.main?.type === 'subscription') {
-                // TODO
-              }
-              return acc
-            }, {}),
-          ),
-        },
-      ],
-    })
   })
 
 export async function gen(

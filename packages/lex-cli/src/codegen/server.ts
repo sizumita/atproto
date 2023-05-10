@@ -111,7 +111,7 @@ const serverTs = (
         )
       })
       .map((doc) => {
-        const method = doc.defs.main?.type !== 'query' ? 'get' : 'post'
+        const method = doc.defs.main?.type === 'query' ? 'get' : 'post'
         return [
           `const ${toTitleCase(doc.id)}Service = service.${method}("/${
             doc.id

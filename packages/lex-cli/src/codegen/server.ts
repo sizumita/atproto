@@ -93,6 +93,8 @@ const indexTs = (
           lexiconDoc.id
         }", ${toTitleCase(lexiconDoc.id)}Types.InputSchema, ${toTitleCase(
           lexiconDoc.id,
+        )}Types.QueryParams, ${toTitleCase(
+          lexiconDoc.id,
         )}Types.OutputSchema, ErrorResponse>`,
         isExported: true,
       })
